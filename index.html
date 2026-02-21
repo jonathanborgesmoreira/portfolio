@@ -199,7 +199,6 @@
             </div>
          </footer>
 
-
     <!-- scroll reveal -->
     <script src="https://unpkg.com/scrollreveal"></script>
 
@@ -212,42 +211,114 @@
     <!-- form contact -->
     <script>
 const form = document.getElementById("contactForm");
-const statusEl = document.getElementById("status");
+
+const toast = document.getElementById("toast");
+const toastIcon = document.getElementById("toastIcon");
+const toastTitle = document.getElementById("toastTitle");
+const toastMessage = document.getElementById("toastMessage");
+const toastClose = document.getElementById("toastClose");
+
+let toastTimer = null;
+
+function showToast({ title, message, type = "success", duration = 3200 }) {
+  // reset
+  toast.classList.remove("success", "error", "progress", "show");
+  clearTimeout(toastTimer);
+
+  toast.style.setProperty("--toast-duration", `${duration}ms`);
+
+  toastTitle.textContent = title;
+  toastMessage.textContent = message;
+
+  if (type === "error") {
+    toast.classList.add("error");
+    toastIcon.textContent = "!";
+  } else {
+    toast.classList.add("success");
+    toastIcon.textContent = "✓";
+  }
+
+  // show + progress
+  requestAnimationFrame(() => {
+    toast.classList.add("show", "progress");
+  });
+
+  toastTimer = setTimeout(() => {
+    toast.classList.remove("show", "progress");
+  }, duration);
+}
+
+toastClose.addEventListener("click", () => {
+  toast.classList.remove("show", "progress");
+  clearTimeout(toastTimer);
+});
 
 form.addEventListener("submit", async (e) => {
-    e.preventDefault();
+  e.preventDefault();
 
-    const data = {
-        nome: form.nome.value,
-        email: form.email.value,
-        telefone: form.telefone.value,
-        assunto: form.assunto.value,
-        mensagem: form.mensagem.value
-    };
+  const submitBtn = form.querySelector('input[type="submit"], button[type="submit"]');
+  const originalBtnText = submitBtn?.value || submitBtn?.textContent;
 
-    statusEl.textContent = "Enviando...";
+  // lock UI
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    if (submitBtn.value !== undefined) submitBtn.value = "Enviando...";
+    else submitBtn.textContent = "Enviando...";
+  }
 
-    try {
-        const res = await fetch("https://portfolio-backend-qc3g.onrender.com/send-email", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(data)
-        });
+  const data = {
+    nome: form.nome.value,
+    email: form.email.value,
+    telefone: form.telefone.value,
+    assunto: form.assunto.value,
+    mensagem: form.mensagem.value
+  };
 
-        const result = await res.json();
+  try {
+    const res = await fetch("https://portfolio-backend-qc3g.onrender.com/send-email", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    });
 
-        if (!res.ok) throw new Error(result.error);
+    const result = await res.json();
+    if (!res.ok) throw new Error(result?.error || "Falha ao enviar");
 
-        statusEl.textContent = "Mensagem enviada com sucesso! 🚀";
-        form.reset();
+    showToast({
+      title: "Enviado ✅",
+      message: "Recebi sua mensagem! Vou te responder em breve.",
+      type: "success",
+      duration: 3400
+    });
 
-    } catch (err) {
-        statusEl.textContent = "Erro ao enviar. Tente novamente.";
+    form.reset();
+  } catch (err) {
+    showToast({
+      title: "Ops…",
+      message: "Não consegui enviar agora. Tente novamente em alguns segundos.",
+      type: "error",
+      duration: 4200
+    });
+  } finally {
+    // unlock UI
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      if (submitBtn.value !== undefined) submitBtn.value = originalBtnText;
+      else submitBtn.textContent = originalBtnText;
     }
+  }
 });
 </script>
+
+<div id="toast" class="toast" aria-live="polite" aria-atomic="true">
+  <div class="toast__icon" id="toastIcon">✓</div>
+  <div class="toast__content">
+    <div class="toast__title" id="toastTitle">Sucesso</div>
+    <div class="toast__message" id="toastMessage">Mensagem enviada!</div>
+  </div>
+  <button class="toast__close" id="toastClose" aria-label="Fechar">×</button>
+  <div class="toast__bar" id="toastBar"></div>
+</div>
 
 </body>
 </html>
